@@ -1,3 +1,5 @@
+# This list includes some things that are not strictly necessary, but very useful when examining
+# the installed server, such as tree, tmux and locate.
 - name: Install required packages
   yum: name={{ item }}
   with_items:
@@ -5,7 +7,11 @@
      - tree
      - unzip
      - yum-utils
+     - mlocate
      - java-1.8.0-openjdk
+
+- name: Initialize locate db
+  command: updatedb
 
 - name: Download installable
   get_url:
@@ -52,6 +58,8 @@
   wait_for:
     port: 8081
 
+# This is necessary in order to know whether to POST (add) or PUT (overwrite) the script later on.
+# Nexus does not allow PUT when there is no script at the target URL.
 - name: Determine if script already exists
   uri:
     url: 'http://192.168.33.32:8081/service/rest/v1/script/{{ scriptName }}'
@@ -62,9 +70,6 @@
     status_code: "200"
   ignore_errors: yes
   register: result
-
-- debug:
-    msg: "{{ result }}"
 
 - set_fact:
     script_exists: '{{ result.status == 200 }}'
@@ -85,8 +90,7 @@
     force_basic_auth: yes
     status_code: 204
 
-
-- name: Creat repositories / execute script
+- name: Create repositories / execute script
   uri:
     url: "http://192.168.33.32:8081/service/rest/v1/script/{{ scriptName }}/run"
     method: POST
