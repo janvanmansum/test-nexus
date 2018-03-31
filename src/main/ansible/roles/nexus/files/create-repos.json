@@ -1,0 +1,5 @@
+{
+  "type": "groovy",
+  "content": "import org.sonatype.nexus.blobstore.api.BlobStore\nimport org.sonatype.nexus.repository.Repository\n\nif (blobStore.blobStoreManager.browse().find { BlobStore blobStore -> blobStore.blobStoreConfiguration.name == 'yum' } == null) {\n    blobStore.createFileBlobStore(\"yum\", \"/opt/sonatype-work/nexus3/blobs/yum\")\n}\n\nif (repository.repositoryManager.browse().find { Repository repo -> repository.name == \"test\" } == null) {\n    repository.createYumHosted(\"test\", \"yum\")\n}\n",
+  "name": "createRepos.groovy"
+}

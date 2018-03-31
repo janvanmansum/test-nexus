@@ -1,0 +1,98 @@
+- name: Install required packages
+  yum: name={{ item }}
+  with_items:
+     - tmux
+     - tree
+     - unzip
+     - yum-utils
+     - java-1.8.0-openjdk
+
+- name: Download installable
+  get_url:
+    url: "{{ download_base }}/nexus-{{ nexus_version }}-unix.tar.gz"
+    dest: "{{ ansible_user_dir }}/nexus-{{ nexus_version }}-unix.tar.gz"
+    checksum: "{{ nexus_checksum }}"
+
+- name: "Unarchive to /opt"
+  unarchive:
+    remote_src: yes
+    src: "{{ ansible_user_dir }}/nexus-{{ nexus_version }}-unix.tar.gz"
+    dest: "/opt"
+    creates: "/opt/nexus-{{ nexus_version }}"
+
+- name: Create link to current version
+  file:
+    src: "/opt/nexus-{{ nexus_version }}"
+    dest: "/opt/nexus"
+    state: link
+
+- name: Create nexus user
+  user:
+    name: nexus
+    system: yes
+
+- name: Make nexus owner of its data directory
+  file:
+    name: "/opt/sonatype-work"
+    owner: "nexus"
+    recurse: yes
+
+- name: Install service unit
+  copy:
+    src: "nexus.service"
+    dest: "/etc/systemd/system/"
+
+- name: Start service
+  service:
+    name: nexus
+    state: started
+    enabled: yes
+
+- name: Wait for repository to start
+  wait_for:
+    port: 8081
+
+- name: Determine if script already exists
+  uri:
+    url: 'http://192.168.33.32:8081/service/rest/v1/script/{{ scriptName }}'
+    method: HEAD
+    user: 'admin'
+    password: 'admin123'
+    force_basic_auth: yes
+    status_code: "200"
+  ignore_errors: yes
+  register: result
+
+- debug:
+    msg: "{{ result }}"
+
+- set_fact:
+    script_exists: '{{ result.status == 200 }}'
+
+- debug:
+    msg: "{{ script_exists }}"
+
+- name: Create repositories / upload script
+  uri:
+    url: 'http://192.168.33.32:8081/service/rest/v1/script{{ "/" + scriptName if script_exists else "" }}'
+    method: '{{ "PUT" if script_exists else "POST" }}'
+    user: 'admin'
+    password: 'admin123'
+    headers:
+      Content-Type: 'application/json'
+    body: "{{ lookup('file','create-repos.json') }}"
+    body_format: json
+    force_basic_auth: yes
+    status_code: 204
+
+
+- name: Creat repositories / execute script
+  uri:
+    url: "http://192.168.33.32:8081/service/rest/v1/script/{{ scriptName }}/run"
+    method: POST
+    user: admin
+    password: admin123
+    force_basic_auth: yes
+    headers:
+      Content-Type: 'text/plain'
+    status_code: 200
