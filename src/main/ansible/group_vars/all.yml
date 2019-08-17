@@ -1,4 +1,5 @@
-download_base: "http://download.sonatype.com/nexus/3"
-nexus_checksum: "sha1:7e577cfd3c72bac488913d19dfad39e90019490f"
-nexus_version: "3.14.0-04"
+download_base: "/Users/janm/git/test/nexus-downloads"
+nexus_checksum: "9972d4615d33dcf5eeb85ec9d04422c1d8dcc752"
+nexus_version: "3.18.1-01"
 scriptName: createRepos.groovy
+admin_password: "admin"

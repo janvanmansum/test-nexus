@@ -1,8 +1,8 @@
 # This list includes some things that are not strictly necessary, but very useful when examining
 # the installed server, such as tree, tmux and locate.
 - name: Install required packages
-  yum: name={{ item }}
-  with_items:
+  yum:
+    name:
      - tmux
      - tree
      - unzip
@@ -14,8 +14,8 @@
   command: updatedb
 
 - name: Download installable
-  get_url:
-    url: "{{ download_base }}/nexus-{{ nexus_version }}-unix.tar.gz"
+  copy:
+    src: "{{ download_base }}/nexus-{{ nexus_version }}-unix.tar.gz"
     dest: "{{ ansible_user_dir }}/nexus-{{ nexus_version }}-unix.tar.gz"
     checksum: "{{ nexus_checksum }}"
 
@@ -58,45 +58,65 @@
   wait_for:
     port: 8081
 
-# This is necessary in order to know whether to POST (add) or PUT (overwrite) the script later on.
-# Nexus does not allow PUT when there is no script at the target URL.
-- name: Determine if script already exists
-  uri:
-    url: 'http://192.168.33.32:8081/service/rest/v1/script/{{ scriptName }}'
-    method: HEAD
-    user: 'admin'
-    password: 'admin123'
-    force_basic_auth: yes
-    status_code: "200"
-  ignore_errors: yes
+- name: Check if this a first time install
+  stat:
+    path: /opt/sonatype-work/nexus3/admin.password
+  register: tmp_admin_file
+
+- name: Get temporary admin password
+  command: cat /opt/sonatype-work/nexus3/admin.password
   register: result
+  ignore_errors: yes
+  when: tmp_admin_file.stat.exists
 
 - set_fact:
-    script_exists: '{{ result.status == 200 }}'
+    temp_admin_password: '{{ result.stdout }}'
+  when: tmp_admin_file.stat.exists
 
-- debug:
-    msg: "{{ script_exists }}"
+- pause:
+    prompt: "Perform manual via web console setup now. Temp admin password = {{ temp_admin_password }}. RESET IT TO: {{ admin_password }}"
+    minutes: 60
+  when: tmp_admin_file.stat.exists
 
-- name: Create repositories / upload script
-  uri:
-    url: 'http://192.168.33.32:8081/service/rest/v1/script{{ "/" + scriptName if script_exists else "" }}'
-    method: '{{ "PUT" if script_exists else "POST" }}'
-    user: 'admin'
-    password: 'admin123'
-    headers:
-      Content-Type: 'application/json'
-    body: "{{ lookup('file','create-repos.json') }}"
-    body_format: json
-    force_basic_auth: yes
-    status_code: 204
-
-- name: Create repositories / execute script
-  uri:
-    url: "http://192.168.33.32:8081/service/rest/v1/script/{{ scriptName }}/run"
-    method: POST
-    user: admin
-    password: admin123
-    force_basic_auth: yes
-    headers:
-      Content-Type: 'text/plain'
-    status_code: 200
+# This is necessary in order to know whether to POST (add) or PUT (overwrite) the script later on.
+# Nexus does not allow PUT when there is no script at the target URL.
+#- name: Determine if script already exists
+#  uri:
+#    url: 'http://localhost:8081/service/rest/v1/script/{{ scriptName }}'
+#    method: HEAD
+#    user: 'admin'
+#    password: 'admin'
+#    force_basic_auth: yes
+#    status_code: "200"
+#  ignore_errors: yes
+#  register: result
+#
+#- set_fact:
+#    script_exists: '{{ result.status == 200 }}'
+#
+#- debug:
+#    msg: "{{ script_exists }}"
+#
+#- name: Create repositories / upload script
+#  uri:
+#    url: 'http://localhost:8081/service/rest/v1/script{{ "/" + scriptName if script_exists else "" }}'
+#    method: '{{ "PUT" if script_exists else "POST" }}'
+#    user: admin
+#    password: '{{ admin_password }}'
+#    headers:
+#      Content-Type: 'application/json'
+#    body: "{{ lookup('file','create-repos.json') }}"
+#    body_format: json
+#    force_basic_auth: yes
+#    status_code: 204
+#
+#- name: Create repositories / execute script
+#  uri:
+#    url: "http://localhost:8081/service/rest/v1/script/{{ scriptName }}/run"
+#    method: POST
+#    user: admin
+#    password: '{{ admin_password }}'
+#    force_basic_auth: yes
+#    headers:
+#      Content-Type: 'text/plain'
+#    status_code: 200
