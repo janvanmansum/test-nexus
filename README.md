@@ -41,7 +41,7 @@ Conclusions
 -----------
 
 ### Installation
-It is not really hard to install Nexus, although it does takes some manual steps.
+It is not really hard to install Nexus, although it does take some manual steps.
 
 ### Yum repo
 The Yum-repo works. It seems to have a custom layout. After uploading one RPM I got this layout in
